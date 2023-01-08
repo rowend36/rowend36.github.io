@@ -1,24 +1,34 @@
-import logo from './logo.svg';
-import './App.css';
+import logo from "./logo.svg";
+import "./App.css";
+import Home from "./pages/home";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { ThemeProvider, CssBaseline } from "@mui/material";
+import { Provider, useAppContext } from "./components/AppContext";
+import { lightTheme, darkTheme } from "./components/Theme";
 
+const ThemeSwitcher = ({ children }) => {
+  const theme = useAppContext((store) =>
+    store.useLightTheme ? lightTheme : darkTheme
+  );
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      {children}
+    </ThemeProvider>
+  );
+};
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Provider>
+      <ThemeSwitcher>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Home />} />
+          </Routes>
+        </BrowserRouter>
+      </ThemeSwitcher>
+    </Provider>
   );
 }
 
