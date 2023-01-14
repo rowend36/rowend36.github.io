@@ -1,99 +1,239 @@
 import Span from "@mui/material/Typography";
-import FullPageCard from "../../components/FullPageCard";
+import Root from "../../components/Root";
 // import { Masonry } from "@mui/lab";
-import Masonry from "react-masonry-css";
-import { Link } from "react-router-dom";
-import projects from "../../logic/projects";
-import Box from "@mui/material/Box";
-import useResponsiveColumns from "../../utils/useResponsiveColumns";
-import { useState } from "react";
-import { Card, Paper } from "@mui/material";
 
-const ProjectImage = ({ children, sx, ...props }) => {
-  const [hovered, setHovered] = useState(false);
-  const onMouseOver = () => {
-    setHovered(true);
-  };
-  const onMouseOut = () => {
-    setHovered(false);
-  };
-  return (
-    <Paper
-      elevation={hovered ? 10 : 0}
-      sx={{
-        transform: hovered ? "translateY(-2px) scale(1.03)" : undefined,
-        transition: "all .3s ease-in-out",
-        ...sx,
-      }}
-      onMouseOver={onMouseOver}
-      onMouseOut={onMouseOut}
-      component="img"
-      {...props}
-    />
-  );
+import ThemeToggleButton from "../../components/ThemeToggleButton";
+import { Box, useScrollTrigger, useTheme } from "@mui/material";
+import Projects from "./Projects";
+import Tiles from "../../components/Tiles";
+import baseTheme from "../../components/Theme";
+import ThemeColors from "../../components/ThemeColors";
+import useWidth from "../../utils/useWidth";
+import { useCallback, useEffect, useRef, useState } from "react";
+import useAnimationEffect from "../../utils/useAnimationEffect";
+import useLogger, { useStateLogger } from "../../utils/useLogger";
+import gradient from "../../utils/gradient";
+const AnimationStates = {
+  Flip: 0,
+  Unfold: 1,
+  Unfold2: 2,
+  Unfold3: 3,
+  Unfolded: 4,
 };
-const Home = () => {
-  const numColumns = useResponsiveColumns(300, 200);
+const AnimationFlags = { None: 0, ClickedFlip: 1 };
+const Home = ({ window }) => {
+  const c = baseTheme.colors;
+  const theme = useTheme();
+  const isMobile = useWidth({ xs: true, sm: false });
+  const backgrounds = isMobile
+    ? [[c[1], c[8]]]
+    : [
+        [c[1], c[4]],
+        [c[8], c[2]],
+      ];
+  const [animationState, setAnimationState] = useState(AnimationStates.Flip);
+  useStateLogger(animationState, AnimationStates);
+  const [animationFlags, setAnimationFlags] = useState(AnimationFlags.None);
+  const [flipRow, flipCol] = useFlipAnimation(
+    backgrounds.length,
+    backgrounds[0].length,
+    isMobile,
+    animationState === AnimationStates.Flip
+  );
+  const trigger = useScrollTrigger({
+    disableHysteresis: true,
+    threshold: 0,
+    target: window ? window() : undefined,
+  });
+  // useEffect(
+  //   function () {
+  //     if (trigger) {
+  //       if (animationState === AnimationStates.Flip) {
+  //         setAnimationState(AnimationStates.Unfold);
+  //       }
+  //     } else if (!trigger && animationState !== AnimationStates.Flip) {
+  //       if (animationFlags & AnimationFlags.ClickedFlip) return;
+  //       setAnimationState(AnimationStates.Flip);
+  //     }
+  //   },
+  //   [trigger, animationState, animationFlags]
+  // );
+  //More reliable transition end events
+  const guard = useRef();
+  const onTransitionEnd = useCallback(() => {
+    if (guard.current) clearTimeout(guard.current);
+    switch (animationState) {
+      case AnimationStates.Unfold:
+      case AnimationStates.Unfold2:
+      case AnimationStates.Unfold3:
+        setAnimationState(animationState + 1);
+        break;
+      default:
+      //do nothing
+    }
+  }, [animationState]);
+  useEffect(
+    function () {
+      switch (animationState) {
+        case AnimationStates.Unfold:
+        case AnimationStates.Unfold3:
+          guard.current = setTimeout(onTransitionEnd, 1000);
+          break;
+        case AnimationStates.Unfold2:
+          guard.current = setTimeout(onTransitionEnd);
+          break;
+        case AnimationStates.Unfolded:
+          guard.current = setTimeout(
+            () => setAnimationState(AnimationStates.Flip),
+            3000
+          );
+          break;
+        default:
+        //do nothing
+      }
+      return () => {
+        clearTimeout(guard.current);
+        guard.current = null;
+      };
+    },
+    [animationState, onTransitionEnd]
+  );
+  const onClick = () => {
+    switch (animationState) {
+      case AnimationStates.Flip:
+        setAnimationFlags(animationFlags | AnimationFlags.ClickedFlip);
+        setAnimationState(AnimationStates.Unfold);
+        break;
+      default:
+      //do nothing
+    }
+  };
+  const speed = (t) => `color ${t}s, background-color ${t}s, transform ${t}s`;
   return (
-    <FullPageCard sx={{ pt: 4 }}>
-      <Span variant="h1" align="center">
-        ROWEND36
-      </Span>
-      <Box sx={{ px: 4, py: 4 }}>
-        <Span variant="body1" sx={{ fontSize: "1.5rem" }}>
-          Good day.
-          <br />
-          My name is Owologba Oro.
-          <br />I am a software developer.
-          <br />
-          Feel free to take a look around.
-        </Span>
-      </Box>
-      <Box
-        component={Masonry}
-        breakpointCols={numColumns}
-        spacing={1}
-        sx={{
-          display: "flex",
-          width: "auto",
-          px: 0.5,
+    <>
+      <Tiles
+        sx={{ width: "100vw", height: "100vh" }}
+        cells={
+          animationState === AnimationStates.Unfolded
+            ? [[null]]
+            : isMobile
+            ? [[c[8], c[1]]]
+            : [
+                [c[10], c[0]],
+                [c[0], c[10]],
+              ]
+        }
+        onClick={onClick}
+        styleCell={(row, col, color) => {
+          const invert = (row + col) % 2;
+          return {
+            sx: Object.assign(
+              {
+                transition: speed(2),
+                perspective: "100cm",
+                transform: "rotateY(0deg)",
+              },
+              animationState === AnimationStates.Flip &&
+                flipRow === row &&
+                flipCol === col
+                ? {
+                    background: color === c[10] ? c[9] : color,
+                    color: backgrounds[row][col],
+                  }
+                : animationState === AnimationStates.Unfold ||
+                  animationState === AnimationStates.Unfold2
+                ? gradient(
+                    { color, background: backgrounds[row][col] },
+                    // prettier-ignore
+                    (invert < 1) === (animationState > AnimationStates.Unfold2)
+                      ? 90
+                      : -90
+                  )
+                : animationState > AnimationStates.Unfold2
+                ? { color: c[9], background: c[2] }
+                : { color, background: backgrounds[row][col] },
+
+              animationState === AnimationStates.Unfold
+                ? {
+                    transform: `rotateY(${89 - 178 * invert}deg)`,
+                    transition: speed(1),
+                  }
+                : animationState === AnimationStates.Unfold2
+                ? {
+                    // TODO do this flip manually before entering state Unfold3
+                    transform: `rotateY(${271 - 542 * invert}deg)`,
+                    transition: speed(0),
+                  }
+                : animationState === AnimationStates.Unfold3
+                ? {
+                    transform: `rotateY(${360 - 720 * invert}deg)`,
+                    transition: speed(1),
+                  }
+                : animationState === AnimationStates.Unfolded
+                ? {
+                    transform: `rotateY(0deg)`,
+                    transition: speed(0),
+                  }
+                : null
+            ),
+            // onTransitionEnd: onTransitionEnd,
+          };
         }}
       >
-        {projects.map(({ image, link }) => {
-          return (
-            <Box
-              component={Link}
-              href={link}
-              sx={
-                Array.isArray(image)
-                  ? { display: "flex", p: 0.5 }
-                  : { display: "block", p: 0.5 }
-              }
-            >
-              {Array.isArray(image) ? (
-                image.map((image, i, arr) => (
-                  <ProjectImage
-                    src={image}
-                    style={{
-                      display: "block",
-                      flexGrow: 1,
-                      marginLeft: i > 0 ? "5px" : 0,
-                      width: "10px",
-                    }}
-                  />
-                ))
-              ) : (
-                <ProjectImage
-                  src={image}
-                  style={{ display: "block", width: "100%" }}
-                />
-              )}
-            </Box>
-          );
-        })}
-      </Box>
-    </FullPageCard>
+        <Root
+          sx={{
+            height: "100%",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Span
+            align="center"
+            variant="h1"
+            sx={{
+              lineHeight: "1",
+              color: "inherit",
+              m: 0,
+              mb: "0.18em",
+              [theme.breakpoints.down("sm")]: { fontSize: "14vw" },
+            }}
+          >
+            {animationState < AnimationStates.Unfold2 ? "ROWEND36" : "Hello"}
+          </Span>
+        </Root>
+      </Tiles>
+      <Root>
+        <Projects />
+      </Root>
+
+      <ThemeColors />
+    </>
   );
+};
+
+const useFlipAnimation = (numRows, numCols, revertFirst, enabled) => {
+  const flipData = useRef([-1, 0, -1]);
+  let [flipRow, flipCol, flipDir] = flipData.current;
+  useAnimationEffect(
+    function () {
+      if (flipDir < 0 || revertFirst) flipDir = -flipDir;
+      if (flipDir === 2) {
+        flipCol = (flipCol + 1) % numCols;
+        if (numRows > 1) flipDir = 1;
+      } else if (flipDir === 1) {
+        flipRow = (flipRow + 1) % numRows;
+        if (numCols > 1) flipDir = 2;
+      }
+      flipData.current = [flipRow, flipCol, flipDir];
+    },
+    enabled ? 4000 : -1
+  );
+
+  if (flipDir < 0) {
+    flipRow = flipCol = -1;
+  }
+  return [flipRow, flipCol];
 };
 
 export default Home;
