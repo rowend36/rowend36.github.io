@@ -1,57 +1,51 @@
 import gsap from "gsap";
-import { useEffect, useRef, useState } from "react";
-import useLogger from "../utils/useLogger";
-export default function Animation({
-  state = "playing",
-  timeline: timelineData,
-  scene,
-  ref,
-  ...props
-}) {
-  const [timeline, setTimeLine] = useState(null);
-  const svgRef = useRef();
-  useLogger(scene);
-  useLogger(timeline);
-  useLogger(state);
-  useEffect(
-    function () {
+import Act from "./Act";
+
+export default class GSAPSvgAct extends Act {
+  onEnter([svg], scene, timeline, playState) {
+    const onScene = (_scene) => {
+      if (scene) onPlayState("stopped");
+      scene = _scene;
+      svg.innerHTML = "";
       if (scene) {
-        const svg = svgRef.current;
-        svg.innerHTML = "";
         svg.appendChild(buildNode(scene));
       }
-    },
-    [scene]
-  );
-  useEffect(
-    function () {
-      const timeline = timelineData ? buildTimeline(timelineData) : null;
-      setTimeLine(timeline);
-      return () => timeline && timeline.seek(0).kill();
-    },
-    [timelineData]
-  );
-  useEffect(
-    function () {
-      if (!scene || !timeline) return;
+    };
+    let gsap;
+    const onTimeline = (_timeline) => {
+      if (gsap) onPlayState("stopped");
+      timeline = _timeline;
+      gsap = _timeline && buildTimeline(_timeline);
+    };
+    const onPlayState = (state) => {
+      playState = state;
+      if (!gsap || scene) return;
       switch (state) {
         case "paused":
-          timeline.pause();
+          gsap.pause();
           break;
         case "stopped":
-          timeline.stop();
+          gsap.stop();
           break;
         // case "started":
         default:
-          timeline.play();
-          timeline.resume();
+          gsap.play();
+          gsap.resume();
           break;
       }
-    },
-    [state, scene, timeline]
-  );
+    };
 
-  return <svg ref={svgRef} {...props}></svg>;
+    const onArgs = (_scene, _timeline, _playState) => {
+      onPlayState("paused");
+      if (scene !== _scene) onScene(_scene);
+      if (timeline !== _timeline) onTimeline(_timeline);
+      onPlayState(_playState);
+    };
+    this.onUpdate(onArgs);
+    return () => {
+      onArgs(null, null, "stopped");
+    };
+  }
 }
 
 const buildNode = (node) => {

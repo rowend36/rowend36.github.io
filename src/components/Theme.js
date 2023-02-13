@@ -1,5 +1,4 @@
 import { createTheme } from "@mui/material";
-import blue from "@mui/material/colors/blue";
 import "@fontsource/open-sans";
 import "@fontsource/playfair-display";
 import { blueGrey, grey } from "@mui/material/colors";

@@ -24,9 +24,10 @@ export default function Projects() {
           width: "auto",
         }}
       >
-        {projects.map(({ image, link, bgColor }) => {
+        {projects.map(({ image, link, bgColor }, i) => {
           return (
             <Box
+              key={`key-${i}`}
               component={Link}
               href={link}
               sx={
@@ -39,6 +40,7 @@ export default function Projects() {
                 (j++,
                 image.map((image, i, arr) => (
                   <ProjectImage
+                    key={`key-${i}`}
                     i={j}
                     src={image}
                     bgColor={bgColor}

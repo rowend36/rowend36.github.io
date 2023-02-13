@@ -7,6 +7,7 @@ export default function Tiles({ cells, children, styleCell, ...props }) {
         e.map((f, j) => {
           return (
             <Tile
+              key={`key-${j}`}
               size={[e.length, cells.length]}
               row={i}
               col={j}

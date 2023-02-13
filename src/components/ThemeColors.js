@@ -14,6 +14,7 @@ export default function ThemeColors() {
       {baseTheme.colors.map((e, i, a) => {
         return (
           <div
+            key={e}
             style={{
               padding: "20px",
               display: "flex",
